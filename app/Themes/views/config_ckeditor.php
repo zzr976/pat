@@ -1,15 +1,12 @@
 <?php
-/**
- * Nome applicativo: PAT
- * Licenza di utilizzo: GNU Affero General Public License» versione 3 e successive: https://spdx.org/licenses/AGPL-3.0-or-later.html
- */
-
-defined('_FRAMEWORK_') OR exit('No direct script access allowed');
-
+defined('_FRAMEWORK_') or exit('No direct script access allowed');
 $identity = authPatOs()->getIdentity();
 $adv = 'base';
 
-if (isSuperAdmin(true)) {
+// https://ckeditor.com/docs/ckeditor4/latest/features/toolbarconcepts.html CONFIGURAZIONE CKEDITOR
+
+
+if (\System\Action::getInstance()->do_action('i_s_s_a', true)) {
     $adv = 'expert';
 } else {
 
@@ -46,7 +43,7 @@ if (isSuperAdmin(true)) {
 ?>
 /**
 * @license Copyright (c) 2003-2022, CKSource Holding sp. z o.o. All rights reserved.
-* For licensing, see https://ckeditor.com/legal/ckeditor-oss-license <?php var_dump($adv); ?>
+* For licensing, see https://ckeditor.com/legal/ckeditor-oss-license
 */
 CKEDITOR.editorConfig = function (config) {
 // Define changes to default configuration here. For example:
@@ -54,11 +51,10 @@ config.language = 'it';
 config.uiColor = '#F4F4F4';
 
 <?php if ($adv === 'expert'): /* Editor per esperti */ ?>
-config.toolbarGroups = [
+    config.toolbarGroups = [
     { name: 'document', groups: [ 'mode', 'document', 'doctools' ] },
     { name: 'clipboard', groups: [ 'clipboard', 'undo' ] },
     { name: 'editing', groups: [ 'find', 'selection', 'spellchecker', 'editing' ] },
-    { name: 'forms', groups: [ 'forms' ] },
     '/',
     { name: 'basicstyles', groups: [ 'basicstyles', 'cleanup' ] },
     { name: 'paragraph', groups: [ 'list', 'indent', 'blocks', 'align', 'bidi', 'paragraph' ] },
@@ -68,11 +64,11 @@ config.toolbarGroups = [
     { name: 'styles', groups: [ 'styles' ] },
     { name: 'colors', groups: [ 'colors' ] },
     { name: 'tools', groups: [ 'tools' ] },
-    { name: 'others', groups: [ 'others' ] },
-    { name: 'about', groups: [ 'about' ] }
-];
+    { name: 'others', groups: [ 'others' ] }
+    ];
 <?php elseif ($adv === 'adv'): /* Editor Avanzato */ ?>
-config.toolbar = [
+    config.toolbar = [
+    { name: 'document', items: ['Preview'] },
     { name: 'clipboard', items: [ 'Cut', 'Copy', 'PasteText', '-', 'Undo', 'Redo' ] },
     { name: 'editing', groups: [ 'find', 'selection', 'spellchecker', 'editing' ], items: [ 'Scayt' ] },
     { name: 'links', items: [ 'Link', 'Unlink', 'Anchor' ] },
@@ -82,15 +78,19 @@ config.toolbar = [
     { name: 'basicstyles', items: [ 'Bold', 'Italic', 'Strike', '-', 'RemoveFormat' ] },
     { name: 'paragraph', items: [ 'NumberedList', 'BulletedList', '-', 'Outdent', 'Indent', '-', 'Blockquote' ] },
     { name: 'styles', items: [ 'Styles', 'Format' ] }
-];
+    ];
 <?php else: ?>
-config.toolbar = [
+    config.toolbar = [
+    { name: 'document', items: ['Preview'] },
     { name: 'clipboard', items: [ 'Cut', 'Copy', 'PasteText', '-', 'Undo', 'Redo','Maximize' ] },
     { name: 'basicstyles', items: [ 'Bold', 'Italic', 'Strike', '-', 'RemoveFormat' ] },
+    { name: 'paragraph', items: [ 'NumberedList', 'BulletedList'] },
     { name: 'links', items: [ 'Link', 'Unlink', 'Anchor' ] },
     { name: 'editing', groups: [ 'find', 'selection', 'spellchecker', 'editing' ], items: [ 'Scayt' ] }
-];
+    ];
 <?php endif; ?>
+
+<?php \System\Action::getInstance()->do_action('p_d_i_m_e_c_k_e') ?>
 
 // Simplify the dialog windows.
 config.removeDialogTabs = 'image:advanced;link:advanced';
@@ -100,4 +100,14 @@ config.imageUploadUrl = '/admin/sys/filemanager';
 config.height = 260;
 config.width = '100%';
 
+config.removeButtons = 'Save,NewPage,PasteFromWord,SelectAll,CopyFormatting,BidiLtr,BidiRtl,Language,Smiley';
+var disablePlugins = [
+'exportpdf',
+'copyformatting',
+'pastefromdocs',
+'pastefromlibreoffice',
+'scayt',
+'wsc'
+].join(',');
+config.removePlugins = disablePlugins;
 };
