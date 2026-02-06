@@ -10,9 +10,10 @@ permissions:
   contents: read
 
 env:
-  PHP_VERSION: '8.2'
-  AZURE_WEBAPP_NAME: 'PAT'
-  PACKAGE_PATH: '.'
+  PHP_VERSION: '8.2'               # PHP 8.2 è il minimo disponibile nella tua Web App
+  AZURE_WEBAPP_NAME: 'PAT'         # nome esatto della Web App
+  PACKAGE_PATH: '.'                # PAT ha index.php in root
+  COMPOSER_ALLOW_SUPERUSER: '1'    # evita warning in CI
 
 jobs:
   build-and-deploy:
@@ -22,16 +23,32 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup PHP
+      - name: Setup PHP ${{ env.PHP_VERSION }}
         uses: shivammathur/setup-php@v2
         with:
           php-version: ${{ env.PHP_VERSION }}
           extensions: mbstring, pdo, pdo_mysql, openssl, json, xml, fileinfo, tokenizer, bcmath, ctype
+          coverage: none
 
-      - name: Install Composer dependencies
-        run: composer install --no-dev --prefer-dist --optimize-autoloader
+      - name: Cache Composer
+        uses: actions/cache@v4
+        with:
+          path: ~/.composer/cache/files
+          key: composer-${{ runner.os }}-${{ env.PHP_VERSION }}-${{ hashFiles('**/composer.lock') }}
+          restore-keys: composer-${{ runner.os }}-${{ env.PHP_VERSION }}-
 
-      # LOGIN tramite OIDC usando i secrets generati da Azure
+      - name: Validate Composer files
+        run: composer validate --no-check-publish --no-interaction
+        working-directory: ${{ env.PACKAGE_PATH }}
+
+      - name: Install Composer dependencies (prod)
+        run: composer install --no-dev --prefer-dist --optimize-autoloader --no-interaction
+        working-directory: ${{ env.PACKAGE_PATH }}
+
+      - name: Show PHP modules (build-time)
+        run: php -m | sort
+
+      # LOGIN tramite OIDC usando i secrets generati automaticamente da Azure
       - name: Azure Login via OIDC
         uses: azure/login@v2
         with:
@@ -44,3 +61,10 @@ jobs:
         with:
           app-name: ${{ env.AZURE_WEBAPP_NAME }}
           package: ${{ env.PACKAGE_PATH }}
+
+      # (Opzionale) Riavvio app dopo il deploy
+      # - name: Restart Web App
+      #   uses: azure/CLI@v2
+      #   with:
+      #     inlineScript: az webapp restart --name ${{ env.AZURE_WEBAPP_NAME }} --resource-group <RG_NAME>
+``
