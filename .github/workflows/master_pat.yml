@@ -1,70 +1,44 @@
-# Docs for the Azure Web Apps Deploy action: https://github.com/Azure/webapps-deploy
-# More GitHub Actions for Azure: https://github.com/Azure/actions
-
-name: Build and deploy PHP app to Azure Web App - PAT
+name: Deploy PAT to Azure Web App (Publish Profile)
 
 on:
   push:
-    branches:
-      - master
+    branches: [ master ]   # ← cambia se usi un branch diverso
   workflow_dispatch:
 
+env:
+  PHP_VERSION: '8.1'       # PAT è testata su PHP 8.0/8.1
+  AZURE_WEBAPP_NAME: 'portale-amministrazione-trasparente'   # ← nome esatto della tua Web App
+  PACKAGE_PATH: '.'        # entrypoint index.php nella root del repo
+
 jobs:
-  build:
+  build-and-deploy:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read #This is required for actions/checkout
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.2'
+          php-version: ${{ env.PHP_VERSION }}
+          extensions: mbstring, pdo, pdo_mysql, openssl, json, xml, fileinfo, tokenizer, bcmath, ctype
+          coverage: none
 
-      - name: Check if composer.json exists
-        id: check_files
-        uses: andstor/file-existence-action@v1
+      - name: Cache Composer
+        uses: actions/cache@v4
         with:
-          files: 'composer.json'
+          path: ~/.composer/cache/files
+          key: composer-${{ runner.os }}-${{ env.PHP_VERSION }}-${{ hashFiles('**/composer.lock') }}
+          restore-keys: composer-${{ runner.os }}-${{ env.PHP_VERSION }}-
 
-      - name: Run composer install if composer.json exists
-        if: steps.check_files.outputs.files_exists == 'true'
-        run: composer validate --no-check-publish && composer install --prefer-dist --no-progress
+      - name: Install Composer dependencies (prod)
+        run: composer install --no-dev --prefer-dist --optimize-autoloader
+        working-directory: ${{ env.PACKAGE_PATH }}
 
-
-      - name: Upload artifact for deployment job
-        uses: actions/upload-artifact@v4
-        with:
-          name: php-app
-          path: .
-
-  deploy:
-    runs-on: ubuntu-latest
-    needs: build
-    permissions:
-      id-token: write #This is required for requesting the JWT
-      contents: read #This is required for actions/checkout
-
-    steps:
-      - name: Download artifact from build job
-        uses: actions/download-artifact@v4
-        with:
-          name: php-app
-      
-      - name: Login to Azure
-        uses: azure/login@v2
-        with:
-          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_18F927BB9DCB481B8BDA501936AA201C }}
-          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_A6A078E7BFA24BE1886EC9DD0EE3EBBA }}
-          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_5C0B14473F214219B4E380CB83130251 }}
-
-      - name: 'Deploy to Azure Web App'
+      - name: Deploy to Azure Web App
         uses: azure/webapps-deploy@v3
-        id: deploy-to-webapp
         with:
-          app-name: 'PAT'
-          slot-name: 'Production'
-          package: .
-          
+          app-name: ${{ env.AZURE_WEBAPP_NAME }}
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+          package: ${{ env.PACKAGE_PATH }}
