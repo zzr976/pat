@@ -1,21 +1,25 @@
-name: Deploy PAT to Azure Web App (Publish Profile)
+name: Deploy PAT to Azure Web App (OIDC - Auto)
 
 on:
   push:
-    branches: [ master ]   # ← cambia se usi un branch diverso
+    branches: [ master ]
   workflow_dispatch:
 
+permissions:
+  id-token: write
+  contents: read
+
 env:
-  PHP_VERSION: '8.2'       # PAT è testata su PHP 8.0/8.1
-  AZURE_WEBAPP_NAME: 'PAT'   # ← nome esatto della tua Web App
-  PACKAGE_PATH: '.'        # entrypoint index.php nella root del repo
+  PHP_VERSION: '8.2'
+  AZURE_WEBAPP_NAME: 'PAT'
+  PACKAGE_PATH: '.'
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Setup PHP
@@ -23,23 +27,20 @@ jobs:
         with:
           php-version: ${{ env.PHP_VERSION }}
           extensions: mbstring, pdo, pdo_mysql, openssl, json, xml, fileinfo, tokenizer, bcmath, ctype
-          coverage: none
 
-      - name: Cache Composer
-        uses: actions/cache@v4
-        with:
-          path: ~/.composer/cache/files
-          key: composer-${{ runner.os }}-${{ env.PHP_VERSION }}-${{ hashFiles('**/composer.lock') }}
-          restore-keys: composer-${{ runner.os }}-${{ env.PHP_VERSION }}-
-
-      - name: Install Composer dependencies (prod)
+      - name: Install Composer dependencies
         run: composer install --no-dev --prefer-dist --optimize-autoloader
-        working-directory: ${{ env.PACKAGE_PATH }}
+
+      # LOGIN tramite OIDC usando i secrets generati da Azure
+      - name: Azure Login via OIDC
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_18F927BB9DCB481B8BDA501936AA201C }}
+          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_A6A078E7BFA24BE1886EC9DD0EE3EBBA }}
+          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_5C0B14473F214219B4E380CB83130251 }}
 
       - name: Deploy to Azure Web App
         uses: azure/webapps-deploy@v3
         with:
           app-name: ${{ env.AZURE_WEBAPP_NAME }}
-          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
           package: ${{ env.PACKAGE_PATH }}
-
